@@ -38,15 +38,17 @@ public class Application extends Controller {
 		private PartnerConnection conn;
 		
 		void addSensorReading(String sensorId, String sensorValue) throws ConnectionException {
-			SObject r = new SObject();
-			r.setType("Sensor_Reading__c");
-			r.setField("SensorValue__c", sensorValue);
-			SObject s = new SObject();
-			s.setType("Sensor__c");
-			s.setField("ArduinoId__c", sensorId);
-			r.setField("Sensor__r", s);
+			// sensorId is the station Id, sensorValue is the RFID Tag
+			// we flip this into an upsert on the RFID_Tag to say its at this station.
+			SObject st = new SObject();
+			st.setType("Station__c");
+			st.setField("station__c", Integer.valueOf(sensorId));
+			SObject tag = new SObject();
+			tag.setType("RFID_Tag__c");
+			tag.setField("TagNumber__c", sensorValue);
+			tag.setField("lastStation__r", st);
 			
-			SaveResult sr = getConnection().create(new SObject [] {r})[0];
+			UpsertResult sr = getConnection().upsert("TagNumber__c", new SObject [] {tag})[0];
 			System.out.println(sr.isSuccess() ? sr.getId() : sr.getErrors()[0].getMessage());
 		}
 		
