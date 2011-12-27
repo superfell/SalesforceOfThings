@@ -11,7 +11,9 @@ byte ip[] = { 192,168,1, 177 };
 byte server[] = { 192,168,1,36 };
 
 // which pins are connected to what?
-#define LED 3
+#define STATION_ID_1 2
+#define STATION_ID_2 3
+#define STATION_ID_3 4
 #define RFID_RX 8
 #define RFID_TX 9
 
@@ -22,21 +24,33 @@ Client client = Client(server, 9091 );
 NewSoftSerial rfid = NewSoftSerial(RFID_RX, RFID_TX);
 
 void setup() {
+  // setup the relevant digital I/O pins
+  pinMode(STATION_ID_1, INPUT);
+  pinMode(STATION_ID_2, INPUT);
+  pinMode(STATION_ID_3, INPUT);
+  
   pinMode(RFID_RX, INPUT);
   pinMode(RFID_TX, OUTPUT);
-  pinMode(LED,OUTPUT);
   
   // start the Ethernet connection and the server:
   Ethernet.begin(mac, ip);
-  digitalWrite(LED, HIGH );
+  // start soft serial for the ID-12 reader
   rfid.begin(9600);
+}
+
+// Pins 2,3,4 make up a 3 bit station Id, convert
+// the 3 pin input into a 0-7 station Id value.
+int getStationId() {
+  int v = 0;
+  if (digitalRead(STATION_ID_1)) v+= 1;
+  if (digitalRead(STATION_ID_2)) v+= 2;
+  if (digitalRead(STATION_ID_3)) v+= 4;
+  return v;
 }
 
 void loop() {
   // wait until the entire tag data is buffered
   if (rfid.available() >= 16) {
-    digitalWrite(LED, LOW);
-
     // read in the entire 16 byte data frame.
     char code[16];
     for (int i =0; i <16; i++) 
@@ -53,13 +67,14 @@ void loop() {
      
       // connect to the proxy and send the tag value + checksum
       if (client.connect()) {
-        client.print("POST /?sid=002&val=");
+        client.print("POST /?sid=");
+        client.print(getStationId());
+        client.print("&val=");
         client.print(tag);
         client.println(" HTTP/1.0");
         client.println("");
       }
    }
-   digitalWrite(LED, HIGH );
  }
  
  // disconnect the client once the proxy has acknolwedged the request. 
